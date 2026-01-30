@@ -3,7 +3,18 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PERFUME_DATABASE } from "../constants";
 import { QuizQuestion } from "../types";
 
-// Export SCENT_FAMILIES to fix reference error in App.tsx
+// Fungsi pembantu untuk inisialisasi AI secara aman
+const getAIClient = () => {
+  let apiKey = "";
+  try {
+    // Mencoba mengakses process.env secara aman
+    apiKey = process.env.API_KEY || "";
+  } catch (e) {
+    console.error("API Key tidak ditemukan di environment.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
 export const SCENT_FAMILIES = [
   "Fresh", "Green", "Tropical", "Fruity", "Woody", "Aquatic", "Citrus", 
   "Tea", "Floral", "Spicy", "Amber", "Herbal", "Powdery", "Musk", 
@@ -13,37 +24,20 @@ export const SCENT_FAMILIES = [
 const BUDGETS = ["< Rp99K", "Rp100K - Rp299K", "> Rp300K"];
 
 export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
-  // Initialize GoogleGenAI with apiKey from process.env.API_KEY directly as per guidelines.
-  // We create a new instance right before call to ensure the key is fresh.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const ai = getAIClient();
   const systemInstruction = `
     You are a Scent Psychologist for 'Parfumu'. 
     Generate a creative, poetic, and psychologically-driven perfume personality quiz in INDONESIAN.
-    
     The quiz must have exactly 10 questions.
-    Each question must have 4-5 options.
     Each option must map to a 'tag'.
-    
-    Available Tags for mapping:
-    - Scent Families: ${SCENT_FAMILIES.join(", ")}
-    - Exclusions: exclude:[FamilyName] (e.g., exclude:Gourmand)
-    - Budgets: budget:[BudgetCategory] (Available categories: ${BUDGETS.join(", ")})
-    
-    The questions should explore:
-    1. Psychological state and personality traits.
-    2. Social aspirations (how they want to be seen).
-    3. Daily rituals and childhood nostalgia.
-    4. Sensory preferences and aversions.
-    5. Specific budget categories (MUST include 1 question for budget).
-    
-    Make the quiz randomized and unique every time it's called.
-    Return the response as a valid JSON array of QuizQuestion objects.
+    Available Tags: ${SCENT_FAMILIES.join(", ")}, budget:[BudgetCategory].
+    Make it randomized and unique.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate 10 fresh randomized perfume quiz questions. Timestamp: ${Date.now()}`,
+      contents: `Generate 10 randomized perfume personality questions. Seed: ${Date.now()}`,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
@@ -72,42 +66,39 @@ export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
       },
     });
 
-    // Use .text property directly as per guidelines
-    return JSON.parse(response.text || "[]");
+    const questions = JSON.parse(response.text || "[]");
+    return questions.length > 0 ? questions : getFallbackQuiz();
   } catch (error) {
-    console.error("Error generating quiz:", error);
-    return [];
+    console.error("Gagal generate kuis dinamis:", error);
+    return getFallbackQuiz();
   }
 };
 
 export const analyzeQuizProfile = async (tags: string[]): Promise<string> => {
-  // Initialize GoogleGenAI with apiKey from process.env.API_KEY directly
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const ai = getAIClient();
   const systemInstruction = `
     You are a Scent Profiler. Based on user quiz tags, generate EXACTLY ONE SHORT, POWERFUL sentence in INDONESIAN.
-    The sentence must summarize their psychological aura and state that the following perfumes are the ultimate missing piece of their identity, making them feel they MUST buy them immediately.
+    The sentence must summarize their psychological aura and state that the following perfumes are the ultimate missing piece of their identity.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Analyze these tags: ${tags.join(", ")}`,
+      contents: `Analyze: ${tags.join(", ")}`,
       config: { systemInstruction },
     });
-    // Use .text property directly
-    return response.text?.trim() || "Aura Anda memancarkan keunikan yang mendalam; kurasi aroma ini adalah kunci untuk menyempurnakan jati diri Anda.";
+    return response.text?.trim() || "Aura Anda menunjukkan karakter yang unik; wewangian ini dirancang khusus sebagai ekstensi dari jiwa Anda yang menawan.";
   } catch (error) {
-    return "Profil Anda menunjukkan karakter yang luar biasa; wewangian ini dirancang khusus sebagai ekstensi dari jiwa Anda yang menawan.";
+    return "Profil Anda menunjukkan karakter yang luar biasa; kurasi aroma ini adalah kunci untuk menyempurnakan jati diri Anda.";
   }
 };
 
 export const getPerfumeRecommendation = async (userPrompt: string) => {
-  // Initialize GoogleGenAI with apiKey from process.env.API_KEY directly
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const ai = getAIClient();
   const systemInstruction = `
     You are the "Fragrance Oracle" for Parfumu.
     Collection: ${JSON.stringify(PERFUME_DATABASE.map(p => ({ id: p.id, name: p.name, family: p.scent_family })))}
-    Consultation: Be poetic, brief, and persuasive. Focus on psychological needs.
+    Consultation: Be poetic and persuasive in Indonesian.
   `;
 
   try {
@@ -116,9 +107,31 @@ export const getPerfumeRecommendation = async (userPrompt: string) => {
       contents: userPrompt,
       config: { systemInstruction },
     });
-    // Use .text property directly
     return response.text || "Oracle sedang bermeditasi. Silakan tanyakan kembali.";
   } catch (error) {
-    return "Aromatic Vault sedang dalam masa restorasi.";
+    return "Sistem sedang dalam pemeliharaan.";
   }
 };
+
+// Fungsi untuk kuis cadangan jika API gagal
+const getFallbackQuiz = (): QuizQuestion[] => [
+  {
+    id: 1,
+    text: "Suasana pagi seperti apa yang paling menggambarkan jiwa Anda?",
+    options: [
+      { text: "Embun segar di pegunungan", tag: "Fresh" },
+      { text: "Kehangatan kopi di kedai tua", tag: "Gourmand" },
+      { text: "Kebun bunga yang baru mekar", tag: "Floral" },
+      { text: "Hutan pinus yang basah setelah hujan", tag: "Woody" }
+    ]
+  },
+  {
+    id: 2,
+    text: "Berapa budget yang Anda alokasikan untuk investasi aroma ini?",
+    options: [
+      { text: "Di bawah Rp99K", tag: "budget:< Rp99K" },
+      { text: "Rp100K - Rp299K", tag: "budget:Rp100K - Rp299K" },
+      { text: "Diatas Rp300K", tag: "budget:> Rp300K" }
+    ]
+  }
+];

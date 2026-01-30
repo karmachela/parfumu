@@ -4,7 +4,6 @@ import { PERFUME_DATABASE } from './constants';
 import { Perfume, ViewMode, QuizAnswers, QuizQuestion } from './types';
 import PerfumeCard from './components/PerfumeCard';
 import AiAssistant from './components/AiAssistant';
-// Added SCENT_FAMILIES to the import list below to fix the "Cannot find name 'SCENT_FAMILIES'" error
 import { generateDynamicQuiz, analyzeQuizProfile, SCENT_FAMILIES } from './services/geminiService';
 
 const SOCIAL_LINKS = {
@@ -46,11 +45,16 @@ const App: React.FC = () => {
 
   const loadNewQuiz = async () => {
     setIsQuizLoading(true);
-    const questions = await generateDynamicQuiz();
-    if (questions.length > 0) {
-      setQuizQuestions(questions);
+    try {
+      const questions = await generateDynamicQuiz();
+      if (questions && questions.length > 0) {
+        setQuizQuestions(questions);
+      }
+    } catch (error) {
+      console.error("Error loading quiz:", error);
+    } finally {
+      setIsQuizLoading(false);
     }
-    setIsQuizLoading(false);
   };
 
   const handleQuizAnswer = async (tag: string) => {
@@ -62,9 +66,14 @@ const App: React.FC = () => {
     } else {
       setViewMode('result');
       setIsQuizLoading(true);
-      const summary = await analyzeQuizProfile(Object.values(newAnswers));
-      setPsychologicalSummary(summary);
-      setIsQuizLoading(false);
+      try {
+        const summary = await analyzeQuizProfile(Object.values(newAnswers));
+        setPsychologicalSummary(summary);
+      } catch (error) {
+        setPsychologicalSummary("Analisis profil batin Anda menunjukkan aura yang unik.");
+      } finally {
+        setIsQuizLoading(false);
+      }
     }
   };
 
@@ -151,7 +160,7 @@ const App: React.FC = () => {
             <div className="text-center mb-12 md:mb-16">
               <span className="text-[10px] text-indigo-500 font-black tracking-[0.5em] uppercase mb-4 block">The Psychological Quest</span>
               <h2 className="text-3xl md:text-6xl font-bold text-zinc-900 mb-6 leading-tight">Jiwa Anda adalah Aroma.</h2>
-              <p className="text-zinc-500 max-w-lg mx-auto text-base md:text-lg leading-relaxed px-4">Selesaikan 10 langkah penemuan jati diri ini. Biarkan kami merangkai aroma yang paling jujur tentang siapa Anda sebenarnya.</p>
+              <p className="text-zinc-500 max-w-lg mx-auto text-base md:text-lg leading-relaxed px-4">Selesaikan langkah penemuan jati diri ini. Biarkan kami merangkai aroma yang paling jujur tentang siapa Anda sebenarnya.</p>
               <div className="w-12 h-1 bg-zinc-200 mx-auto mt-12 rounded-full"></div>
             </div>
 
@@ -162,7 +171,7 @@ const App: React.FC = () => {
                 <div className="flex justify-between items-center mb-8 md:mb-12">
                   <div className="flex flex-col">
                     <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">Soul Mapping</span>
-                    <span className="text-zinc-900 font-bold">Langkah {currentStep + 1} <span className="text-zinc-300">/ 10</span></span>
+                    <span className="text-zinc-900 font-bold">Langkah {currentStep + 1} <span className="text-zinc-300">/ {quizQuestions.length}</span></span>
                   </div>
                   <div className="flex gap-1 md:gap-1.5">
                     {quizQuestions.map((_, i) => (
@@ -205,7 +214,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="text-center pt-8">
-              <button onClick={resetQuiz} className="px-10 py-4 rounded-full border border-zinc-200 text-zinc-400 hover:text-indigo-600 hover:border-indigo-600 transition-all font-black text-[10px] uppercase tracking-[0.2em]">Coba Lagi (Generasi Pertanyaan Baru)</button>
+              <button onClick={resetQuiz} className="px-10 py-4 rounded-full border border-zinc-200 text-zinc-400 hover:text-indigo-600 hover:border-indigo-600 transition-all font-black text-[10px] uppercase tracking-[0.2em]">Coba Lagi</button>
             </div>
           </div>
         )}
@@ -215,7 +224,7 @@ const App: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-end gap-8 border-b border-zinc-100 pb-12">
               <div className="max-w-xl px-4">
                 <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 mb-4">Perpustakaan Aroma</h2>
-                <p className="text-zinc-400 text-sm md:text-base">Eksplorasi koleksi mahakarya kami. Setiap botol adalah cerita yang menunggu untuk Anda ceritakan.</p>
+                <p className="text-zinc-400 text-sm md:text-base">Setiap botol adalah cerita yang menunggu untuk Anda ceritakan.</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto px-4">
                 <div className="relative group flex-grow">
@@ -242,7 +251,7 @@ const App: React.FC = () => {
              <div className="space-y-8 max-w-2xl px-6">
                 <div className="inline-block px-4 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest">Tentang Parfumu</div>
                 <h2 className="text-4xl md:text-5xl font-bold text-zinc-900 leading-tight">Menerjemahkan Jiwa Menjadi Udara.</h2>
-                <p className="text-zinc-500 text-base md:text-lg leading-relaxed">Parfumu lahir dari keyakinan bahwa setiap individu memiliki lanskap emosional yang unik. Kami membantu Anda menemukan aroma yang tidak hanya wangi, tapi mampu menjadi ekstensi dari jiwa Anda.</p>
+                <p className="text-zinc-500 text-base md:text-lg leading-relaxed">Parfumu membantu Anda menemukan aroma yang tidak hanya wangi, tapi mampu menjadi ekstensi dari jiwa Anda.</p>
              </div>
 
              <div className="bg-white rounded-[2rem] md:rounded-[3rem] p-10 md:p-20 shadow-xl border border-zinc-50 relative overflow-hidden text-center mx-4">
@@ -252,21 +261,7 @@ const App: React.FC = () => {
                       <p className="text-[11px] text-zinc-400 font-black uppercase tracking-[0.4em]">Scent Explorer</p>
                       <div className="w-12 h-1 bg-indigo-500 mx-auto rounded-full"></div>
                    </div>
-                   <div className="space-y-8">
-                      <h3 className="text-2xl md:text-3xl font-bold italic text-zinc-800 leading-snug">"Art Teacher turned Scent Explorer"</h3>
-                      <p className="text-zinc-500 text-lg md:text-xl leading-relaxed italic">
-                        Lahir dari kanvas, jatuh cinta pada aroma.<br/>
-                        Melukis emosi lewat wangi, Merangkai ingatan di udara.<br/><br/>
-                        Aroma bukan hiasan — ia adalah identitas.
-                      </p>
-                      <div className="pt-12 border-t border-zinc-100">
-                         <div className="flex flex-wrap justify-center gap-8 text-2xl">
-                            <a href={SOCIAL_LINKS.instagram} target="_blank" className="text-pink-600 hover:scale-110 transition-transform"><i className="fa-brands fa-instagram"></i></a>
-                            <a href={SOCIAL_LINKS.tiktok} target="_blank" className="text-zinc-900 hover:scale-110 transition-transform"><i className="fa-brands fa-tiktok"></i></a>
-                            <a href={SOCIAL_LINKS.youtube} target="_blank" className="text-red-600 hover:scale-110 transition-transform"><i className="fa-brands fa-youtube"></i></a>
-                         </div>
-                      </div>
-                   </div>
+                   <p className="text-zinc-500 text-lg md:text-xl leading-relaxed italic">"Aroma adalah cara jiwa berbicara tanpa suara."</p>
                 </div>
              </div>
           </div>
@@ -285,7 +280,7 @@ const App: React.FC = () => {
                   <p className="text-zinc-600 text-xl md:text-2xl font-cinzel leading-relaxed italic">"{getPersuasivePitch(selectedPerfume)}"</p>
                </div>
             </div>
-            <div className="md:w-1/2 p-8 md:p-20 overflow-y-auto">
+            <div className="md:w-1/2 p-8 md:p-16 overflow-y-auto">
               <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 mb-2 leading-tight">{selectedPerfume.name}</h2>
               <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-[0.3em] mb-10">{selectedPerfume.scent_family.join(' • ')}</p>
               
