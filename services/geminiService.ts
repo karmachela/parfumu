@@ -3,15 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PERFUME_DATABASE } from "../constants";
 import { QuizQuestion } from "../types";
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  console.warn("Gemini API Key is missing. Check your environment configuration.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
-
-const SCENT_FAMILIES = [
+// Export SCENT_FAMILIES to fix reference error in App.tsx
+export const SCENT_FAMILIES = [
   "Fresh", "Green", "Tropical", "Fruity", "Woody", "Aquatic", "Citrus", 
   "Tea", "Floral", "Spicy", "Amber", "Herbal", "Powdery", "Musk", 
   "Solar", "Earth", "Aromatic", "Oriental", "Gourmand"
@@ -20,8 +13,9 @@ const SCENT_FAMILIES = [
 const BUDGETS = ["< Rp99K", "Rp100K - Rp299K", "> Rp300K"];
 
 export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
-  if (!API_KEY) return [];
-
+  // Initialize GoogleGenAI with apiKey from process.env.API_KEY directly as per guidelines.
+  // We create a new instance right before call to ensure the key is fresh.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const systemInstruction = `
     You are a Scent Psychologist for 'Parfumu'. 
     Generate a creative, poetic, and psychologically-driven perfume personality quiz in INDONESIAN.
@@ -35,24 +29,21 @@ export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
     - Exclusions: exclude:[FamilyName] (e.g., exclude:Gourmand)
     - Budgets: budget:[BudgetCategory] (Available categories: ${BUDGETS.join(", ")})
     
-    The questions MUST cover:
-    1. Mental/Emotional state.
-    2. Dream atmosphere.
-    3. How they want to be perceived by others.
-    4. Childhood or nostalgic memories.
-    5. Daily habits.
-    6. Preferred sensory textures.
-    7. Scents that make them uncomfortable (exclude tags).
-    8. Spending personality (budget tags).
+    The questions should explore:
+    1. Psychological state and personality traits.
+    2. Social aspirations (how they want to be seen).
+    3. Daily rituals and childhood nostalgia.
+    4. Sensory preferences and aversions.
+    5. Specific budget categories (MUST include 1 question for budget).
     
-    Make the questions unique and different every time.
+    Make the quiz randomized and unique every time it's called.
     Return the response as a valid JSON array of QuizQuestion objects.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate a new, fresh, and deeply psychological 10-question perfume quiz. Seed: ${Math.random()}`,
+      contents: `Generate 10 fresh randomized perfume quiz questions. Timestamp: ${Date.now()}`,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
@@ -81,6 +72,7 @@ export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
       },
     });
 
+    // Use .text property directly as per guidelines
     return JSON.parse(response.text || "[]");
   } catch (error) {
     console.error("Error generating quiz:", error);
@@ -88,28 +80,34 @@ export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
   }
 };
 
-export const getPersonalityInsight = async (answers: string[]): Promise<string> => {
-  if (!API_KEY) return "Jiwa Anda unik dan penuh misteri.";
+export const analyzeQuizProfile = async (tags: string[]): Promise<string> => {
+  // Initialize GoogleGenAI with apiKey from process.env.API_KEY directly
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const systemInstruction = `
+    You are a Scent Profiler. Based on user quiz tags, generate EXACTLY ONE SHORT, POWERFUL sentence in INDONESIAN.
+    The sentence must summarize their psychological aura and state that the following perfumes are the ultimate missing piece of their identity, making them feel they MUST buy them immediately.
+  `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `User selected these traits: ${answers.join(", ")}. Write 1 short, convincing sentence in Indonesian about their psychological profile and why these perfumes match them perfectly.`,
-      config: {
-        systemInstruction: "You are a poetic scent expert. Be brief (max 25 words).",
-      }
+      contents: `Analyze these tags: ${tags.join(", ")}`,
+      config: { systemInstruction },
     });
-    return response.text || "Aroma ini adalah cerminan batin Anda yang elegan.";
+    // Use .text property directly
+    return response.text?.trim() || "Aura Anda memancarkan keunikan yang mendalam; kurasi aroma ini adalah kunci untuk menyempurnakan jati diri Anda.";
   } catch (error) {
-    return "Aroma ini melengkapi aura unik yang Anda miliki.";
+    return "Profil Anda menunjukkan karakter yang luar biasa; wewangian ini dirancang khusus sebagai ekstensi dari jiwa Anda yang menawan.";
   }
 };
 
 export const getPerfumeRecommendation = async (userPrompt: string) => {
+  // Initialize GoogleGenAI with apiKey from process.env.API_KEY directly
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const systemInstruction = `
     You are the "Fragrance Oracle" for Parfumu.
     Collection: ${JSON.stringify(PERFUME_DATABASE.map(p => ({ id: p.id, name: p.name, family: p.scent_family })))}
-    Consultation: Be poetic, brief, and psychological.
+    Consultation: Be poetic, brief, and persuasive. Focus on psychological needs.
   `;
 
   try {
@@ -118,7 +116,8 @@ export const getPerfumeRecommendation = async (userPrompt: string) => {
       contents: userPrompt,
       config: { systemInstruction },
     });
-    return response.text || "Spiritualitas aroma sedang terganggu.";
+    // Use .text property directly
+    return response.text || "Oracle sedang bermeditasi. Silakan tanyakan kembali.";
   } catch (error) {
     return "Aromatic Vault sedang dalam masa restorasi.";
   }
