@@ -63,17 +63,22 @@ const App: React.FC = () => {
   };
 
   const handleQuizAnswer = async (tag: string) => {
-    const newAnswers = { ...quizAnswers, [currentStep]: tag };
-    setQuizAnswers(newAnswers);
+    // Gunakan salinan jawaban terbaru untuk logika transisi
+    const updatedAnswers = { ...quizAnswers, [currentStep]: tag };
+    setQuizAnswers(updatedAnswers);
     
+    // Pastikan currentStep hanya maju jika masih ada pertanyaan tersisa
     if (currentStep < quizQuestions.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
+      // Jika pertanyaan terakhir, pindah ke laman hasil
       setViewMode('result');
       setIsQuizLoading(true);
       try {
-        const summary = await analyzeQuizProfile(Object.values(newAnswers));
+        const summary = await analyzeQuizProfile(Object.values(updatedAnswers));
         setPsychologicalSummary(summary);
+      } catch (e) {
+        console.error(e);
       } finally {
         setIsQuizLoading(false);
       }
@@ -90,18 +95,32 @@ const App: React.FC = () => {
 
   const recommendations = useMemo(() => {
     if (viewMode !== 'result' || quizQuestions.length === 0) return [];
+    
     const tags = Object.values(quizAnswers) as string[];
-    const preferenceTags = tags.filter(t => !t.includes(':'));
+    const preferenceTags = tags.filter(t => !t.includes(':')).map(t => t.toLowerCase());
     const budgetTag = tags.find(t => t.startsWith('budget:'))?.replace('budget:', '');
 
-    return PERFUME_DATABASE.filter(perfume => {
+    let results = PERFUME_DATABASE.filter(perfume => {
+      // Filter budget jika ada
       if (budgetTag && budgetTag !== 'any' && perfume.price !== budgetTag) return false;
-      return perfume.scent_family.some(f => preferenceTags.includes(f));
-    }).sort((a, b) => {
-      const matchA = a.scent_family.filter(f => preferenceTags.includes(f)).length;
-      const matchB = b.scent_family.filter(f => preferenceTags.includes(f)).length;
+      
+      // Filter berdasarkan kecocokan aroma (case-insensitive)
+      const perfumeFamilies = perfume.scent_family.map(f => f.toLowerCase());
+      return preferenceTags.some(tag => perfumeFamilies.includes(tag));
+    });
+
+    // Jika hasil kosong, berikan fallback dari database secara acak/berdasarkan budget saja
+    if (results.length === 0) {
+      results = PERFUME_DATABASE.filter(p => !budgetTag || p.price === budgetTag).slice(0, 10);
+    }
+
+    return results.sort((a, b) => {
+      const aFamilies = a.scent_family.map(f => f.toLowerCase());
+      const bFamilies = b.scent_family.map(f => f.toLowerCase());
+      const matchA = aFamilies.filter(f => preferenceTags.includes(f)).length;
+      const matchB = bFamilies.filter(f => preferenceTags.includes(f)).length;
       return matchB - matchA;
-    }).slice(0, 4);
+    }).slice(0, 8); // Tampilkan lebih banyak rekomendasi (8 kartu)
   }, [quizAnswers, viewMode, quizQuestions]);
 
   const filteredKoleksi = useMemo(() => {
@@ -145,7 +164,7 @@ const App: React.FC = () => {
           <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="text-center mb-10">
                <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-2">Temukan Identitas Aromamu</h2>
-               <p className="text-zinc-400 text-sm font-medium">Bantu kami membaca karakter batin Anda melalui 10 pertanyaan psikologis.</p>
+               <p className="text-zinc-400 text-sm font-medium">Bantu kami membaca karakter batin Anda melalui pertanyaan psikologis.</p>
             </div>
 
             {isQuizLoading && !quizQuestions.length ? (
@@ -156,9 +175,9 @@ const App: React.FC = () => {
             ) : quizQuestions.length > 0 ? (
               <div className="card-glass rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
                 <div className="flex justify-between items-center mb-10">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Langkah {currentStep + 1} / 10</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Langkah {currentStep + 1} / {quizQuestions.length}</span>
                   <div className="flex gap-1">
-                    {Array.from({length: 10}).map((_, i) => (
+                    {quizQuestions.map((_, i) => (
                       <div key={i} className={`h-1 w-3 rounded-full transition-all duration-300 ${i <= currentStep ? 'bg-indigo-600' : 'bg-zinc-100'}`}></div>
                     ))}
                   </div>
@@ -197,11 +216,16 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 px-4">
-              {recommendations.map(p => (
-                <PerfumeCard key={p.id} perfume={p} onClick={setSelectedPerfume} />
-              ))}
+            
+            <div className="space-y-6">
+              <h3 className="text-center text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">Rekomendasi Manifestasi Anda</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 px-4">
+                {recommendations.map(p => (
+                  <PerfumeCard key={p.id} perfume={p} onClick={setSelectedPerfume} />
+                ))}
+              </div>
             </div>
+
             <div className="text-center">
               <button onClick={resetQuiz} className="px-8 py-3 rounded-full border border-zinc-200 text-zinc-400 hover:text-indigo-600 hover:border-indigo-600 transition-all font-black text-[9px] uppercase tracking-widest">Temukan Kembali Diri Anda</button>
             </div>

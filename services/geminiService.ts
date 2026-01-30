@@ -21,7 +21,10 @@ export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
       model: "gemini-3-flash-preview",
       contents: `Generate a new unique 10-question perfume personality quiz in INDONESIAN. Seed: ${Date.now()}`,
       config: {
-        systemInstruction: `You are a Scent Psychologist. Generate 10 randomized psychological questions mapping to: ${SCENT_FAMILIES.join(", ")}, budget:[BudgetCategory].`,
+        systemInstruction: `You are a Scent Psychologist. Generate 10 randomized psychological questions. 
+        Each option MUST have a 'tag' from this list: ${SCENT_FAMILIES.join(", ")}. 
+        Include at least one question for budget with tags: budget:< Rp99K, budget:Rp100K - Rp299K, budget:> Rp300K.
+        The output must be a valid JSON array of questions.`,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -49,7 +52,8 @@ export const generateDynamicQuiz = async (): Promise<QuizQuestion[]> => {
     });
 
     const parsed = JSON.parse(response.text || "[]");
-    return parsed.length > 0 ? parsed : getFallbackQuiz();
+    // Pastikan minimal ada 3 pertanyaan agar kuis terasa valid
+    return parsed.length >= 3 ? parsed : getFallbackQuiz();
   } catch (error) {
     console.error("Quiz generation failed:", error);
     return getFallbackQuiz();
@@ -91,12 +95,51 @@ export const getPerfumeRecommendation = async (userPrompt: string) => {
 const getFallbackQuiz = (): QuizQuestion[] => [
   {
     id: 1,
-    text: "Pilih elemen alam yang paling menenangkan jiwa Anda?",
+    text: "Pilih suasana alam yang paling menggambarkan ketenangan batin Anda?",
     options: [
-      { text: "Embun pagi di pegunungan", tag: "Fresh" },
-      { text: "Hutan kayu yang hangat", tag: "Woody" },
-      { text: "Taman bunga saat fajar", tag: "Floral" },
-      { text: "Deburan ombak di laut", tag: "Aquatic" }
+      { text: "Puncak gunung yang dingin berembun", tag: "Fresh" },
+      { text: "Hutan pinus yang hangat dan kokoh", tag: "Woody" },
+      { text: "Taman bunga mekar di pagi hari", tag: "Floral" },
+      { text: "Deburan ombak di pantai tropis", tag: "Aquatic" }
+    ]
+  },
+  {
+    id: 2,
+    text: "Bagaimana cara Anda menghabiskan waktu luang yang paling ideal?",
+    options: [
+      { text: "Membaca buku di kedai kopi yang tenang", tag: "Gourmand" },
+      { text: "Menjelajahi tempat baru yang belum terjamah", tag: "Green" },
+      { text: "Menghadiri acara sosial yang penuh energi", tag: "Fruity" },
+      { text: "Meditasi atau yoga di rumah", tag: "Musk" }
+    ]
+  },
+  {
+    id: 3,
+    text: "Pilih palet warna yang paling mewakili emosi Anda saat ini?",
+    options: [
+      { text: "Biru laut dan putih bersih", tag: "Aquatic" },
+      { text: "Hijau lumut dan cokelat tanah", tag: "Earth" },
+      { text: "Merah menyala dan oranye hangat", tag: "Spicy" },
+      { text: "Ungu pastel dan pink lembut", tag: "Powdery" }
+    ]
+  },
+  {
+    id: 4,
+    text: "Apa elemen visual yang paling menarik perhatian Anda?",
+    options: [
+      { text: "Kilauan kristal yang elegan", tag: "Amber" },
+      { text: "Tekstur kain sutra yang lembut", tag: "Floral" },
+      { text: "Logam futuristik yang dingin", tag: "Aromatic" },
+      { text: "Kayu tua yang memiliki sejarah", tag: "Woody" }
+    ]
+  },
+  {
+    id: 5,
+    text: "Berapa alokasi investasi untuk aroma jati diri Anda?",
+    options: [
+      { text: "Masterpiece terjangkau (< Rp99K)", tag: "budget:< Rp99K" },
+      { text: "Koleksi menengah (Rp100K - Rp299K)", tag: "budget:Rp100K - Rp299K" },
+      { text: "Investasi premium (> Rp300K)", tag: "budget:> Rp300K" }
     ]
   }
 ];
