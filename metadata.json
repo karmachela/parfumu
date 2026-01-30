@@ -1,0 +1,7 @@
+{
+  "name": "Parfumu",
+  "description": "AI-Powered Fragrance Personality Discovery & Explorer.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
