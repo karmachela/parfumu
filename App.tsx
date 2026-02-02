@@ -3,7 +3,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { PERFUME_DATABASE } from './constants';
 import { Perfume, ViewMode, QuizAnswers, QuizQuestion } from './types';
 import PerfumeCard from './components/PerfumeCard';
-import AiAssistant from './components/AiAssistant';
 import { generateDynamicQuiz, analyzeQuizProfile, SCENT_FAMILIES } from './services/geminiService';
 
 const SOCIAL_LINKS = {
@@ -21,15 +20,10 @@ const ParfumuLogo = () => (
         <stop offset="100%" stopColor="#ec4899" />
       </linearGradient>
     </defs>
-    {/* Tutup Botol */}
     <rect x="38" y="10" width="24" height="15" rx="4" fill="url(#logoGrad)" />
-    {/* Leher Botol */}
     <rect x="44" y="25" width="12" height="8" fill="url(#logoGrad)" opacity="0.8" />
-    {/* Badan Botol */}
     <rect x="25" y="33" width="50" height="55" rx="12" stroke="url(#logoGrad)" strokeWidth="6" />
-    {/* Cairan Parfum Inside */}
     <path d="M31 65C31 65 35 60 50 60C65 60 69 65 69 65V76C69 82.6274 63.6274 88 57 88H43C36.3726 88 31 82.6274 31 76V65Z" fill="url(#logoGrad)" opacity="0.2" />
-    {/* Sparkle Icon */}
     <circle cx="50" cy="53" r="4" fill="url(#logoGrad)" />
   </svg>
 );
@@ -54,7 +48,8 @@ const App: React.FC = () => {
     setIsQuizLoading(true);
     try {
       const questions = await generateDynamicQuiz();
-      setQuizQuestions(questions || []);
+      // Pastikan hanya ambil maksimal 10
+      setQuizQuestions(questions?.slice(0, 10) || []);
     } catch (e) {
       console.error("Gagal memuat kuis:", e);
     } finally {
@@ -63,15 +58,12 @@ const App: React.FC = () => {
   };
 
   const handleQuizAnswer = async (tag: string) => {
-    // Gunakan salinan jawaban terbaru untuk logika transisi
     const updatedAnswers = { ...quizAnswers, [currentStep]: tag };
     setQuizAnswers(updatedAnswers);
     
-    // Pastikan currentStep hanya maju jika masih ada pertanyaan tersisa
     if (currentStep < quizQuestions.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Jika pertanyaan terakhir, pindah ke laman hasil
       setViewMode('result');
       setIsQuizLoading(true);
       try {
@@ -101,15 +93,11 @@ const App: React.FC = () => {
     const budgetTag = tags.find(t => t.startsWith('budget:'))?.replace('budget:', '');
 
     let results = PERFUME_DATABASE.filter(perfume => {
-      // Filter budget jika ada
       if (budgetTag && budgetTag !== 'any' && perfume.price !== budgetTag) return false;
-      
-      // Filter berdasarkan kecocokan aroma (case-insensitive)
       const perfumeFamilies = perfume.scent_family.map(f => f.toLowerCase());
       return preferenceTags.some(tag => perfumeFamilies.includes(tag));
     });
 
-    // Jika hasil kosong, berikan fallback dari database secara acak/berdasarkan budget saja
     if (results.length === 0) {
       results = PERFUME_DATABASE.filter(p => !budgetTag || p.price === budgetTag).slice(0, 10);
     }
@@ -120,7 +108,7 @@ const App: React.FC = () => {
       const matchA = aFamilies.filter(f => preferenceTags.includes(f)).length;
       const matchB = bFamilies.filter(f => preferenceTags.includes(f)).length;
       return matchB - matchA;
-    }).slice(0, 8); // Tampilkan lebih banyak rekomendasi (8 kartu)
+    }).slice(0, 8);
   }, [quizAnswers, viewMode, quizQuestions]);
 
   const filteredKoleksi = useMemo(() => {
@@ -226,8 +214,14 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-center">
-              <button onClick={resetQuiz} className="px-8 py-3 rounded-full border border-zinc-200 text-zinc-400 hover:text-indigo-600 hover:border-indigo-600 transition-all font-black text-[9px] uppercase tracking-widest">Temukan Kembali Diri Anda</button>
+            <div className="flex flex-col items-center gap-4">
+              <button 
+                onClick={() => setViewMode('collection')}
+                className="px-10 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-pink-500 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 hover:scale-105 transition-all"
+              >
+                Jelajahi Lebih Banyak Parfum
+              </button>
+              <button onClick={resetQuiz} className="text-zinc-400 hover:text-indigo-600 transition-all font-black text-[9px] uppercase tracking-widest">Ulangi Analisis Profil</button>
             </div>
           </div>
         )}
@@ -330,7 +324,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <AiAssistant />
       <footer className="mt-20 border-t border-zinc-100 py-16 px-6 text-center">
         <div className="flex flex-col items-center gap-4 mb-8">
            <ParfumuLogo />
